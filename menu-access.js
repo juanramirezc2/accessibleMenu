@@ -2,28 +2,16 @@
 * @license JGMM 
 * * License: MIT
 */
-(function(window, angular, undefined) {
-  'use strict';
+(function(window, angular, undefined) {'use strict';
 
   angular.module('ngAccess', ['ng'])
   .controller('MainNavController',mainNavControlFunc)
-  .directive('mainAccessMenu',DirectiveMainFunc)
-  .directive('asyncMainAccess',AsyncSubmenuFunc); 
+  .directive('mainAccessMenu',DirectiveMainFunc);
 
   /*directive that trigger a refresh of the events once is called 
   * this directive might  accept an root element selector or $index ng repeat 
   */
-  function AsyncSubmenuFunc(){
-    var directive={
-      restrict: 'A',
-      link: linkFunction,
-      require:'^mainAccessMenu'
-    };
-    function linkFunction(scope, element, attrs, mainAccessMenu){
-     // mainAccessMenu.init(el);
-    }
-    return directive;
-  }
+
   function  mainNavControlFunc(){
 
     var vmm = this;
@@ -34,25 +22,30 @@
         items[i].classList.remove("isHover");
       }
     };
-    vmm.init = function(RootEl){
-      var mainConfig={
-        MainItem : RootEl[0],
-        mainItemSelector:".nav-item",
-        SubmenuSelector:".Sub-Menu",
-        SubmenuItemSelector:".subnav-item"
-      }
-      var subMenus = RootEl.find(".Sub-Menu"); //capture all of the submenus
-      var sectionSubMenuConfig={
-        actualSection:subMenus,
-        subNavGroup:".sub-nav-group",
-        subNavItem:".subnav-item"
-      };
-      debugger;
-      // attach events to the Main items selectors 
-      vmm.attachMainEvents(vmm.eventMainHandler,"onkeydown",mainConfig);
-      // attach events to the sub nav items 
-      vmm.attachEventsSub(vmm.eventHandlerSub,"onkeydown",sectionSubMenuConfig); 
-    }
+    vmm.init = function(RootEl,scope){
+      setTimeout(function(){ 
+        var CallBack = (scope && scope.callback) ? scope.callback : false;
+        var mainConfig={
+          MainItem : RootEl[0],
+          mainItemSelector:".nav-item",
+          SubmenuSelector:".Sub-Menu",
+          SubmenuItemSelector:".subnav-item",
+          callback : CallBack
+        };
+        var subMenus = RootEl.find(".Sub-Menu"); //capture all of the submenus
+        var sectionSubMenuConfig={
+          actualSection:subMenus,
+          subNavGroup:".sub-nav-group",
+          subNavItem:".subnav-item",
+          callback : CallBack
+        };
+        // attach events to the Main items selectors 
+        vmm.attachMainEvents(vmm.eventMainHandler,"onkeydown",mainConfig);
+        // attach events to the sub nav items 
+        vmm.attachEventsSub(vmm.eventHandlerSub,"onkeydown",sectionSubMenuConfig); 
+      }, 5000);
+    };
+
     vmm.clearSubmenu=function(items,index){
       for(var i=0;i<items.length;i++){
         items[i].subMenu.classList.remove("visible"); //hide all of the sub menus
@@ -61,6 +54,7 @@
         items[i].focus();
       }
     };
+
     vmm.eventHandlerSub = function eventHandler(i,j,menuMatrix,subElem){
       return function(e){
         if(e.keyCode===39){ 
@@ -135,6 +129,7 @@
         }
       };
     };
+
     vmm.attachEventsSub=function(callback,event,config){
       config.actualSection.each(loopElems(config,event,callback)); 
     };
@@ -172,12 +167,15 @@
         mainItems[i].firstLink = SubMenuEl.querySelector(config.SubmenuItemSelector); //submenu added as a part of DOM Element
         mainItems[i].subMenu = SubMenuEl; //first menu item added as a part of DOM Element
         menuArray[i] = mainItems[i]; /* save the mainItems element in the array */
-        menuArray[i][event] = callback.call(this,i,menuArray,config.mainItem);
+        menuArray[i][event] = callback.call(this,i,menuArray,config.mainItem,config.callback);
       }
     };
 
-    vmm.eventMainHandler=function(i,menuArray,elem){
+    vmm.eventMainHandler=function(i,menuArray,elem,callback){
       return function(e){
+        if(callback){
+          callback();
+        }
         if(e.keyCode===39){ 
           vmm.clearAllHover(menuArray);
           //right differents options with the right arrow
@@ -230,7 +228,6 @@
           if(subMenu && firstLink){ // if not is a one level menu
             menuArray[i].classList.add("isHover");
             subMenu.classList.add("visible");
-            console.dir(firstLink);
             firstLink.focus();
           }
           return false;
@@ -248,18 +245,21 @@
     };
   }
 
-  function DirectiveMainFunc(){
-
-    var directive= {
+  function DirectiveMainFunc($parse){
+    var directive = {
       restrict: 'A',
       link: linkFunction,
       controller:'MainNavController',
+      scope:{
+        callback : '&change'
+      },
       controllerAs:'vmm',
-      bindToController: true,
     };
+
     function linkFunction(scope, element, attributes){
       //events for the main menu item
-      scope.vmm.init(element);
+      /* this callback will triggered when something changes sending e.type as the event type */
+      scope.vmm.init(element,scope);
     }
     return directive;
   }
